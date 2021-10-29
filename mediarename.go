@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -20,7 +22,13 @@ const (
 	apiBase = "https://api.tvmaze.com/"
 )
 
-var episodeRegex = regexp.MustCompile("(s[\\d]{2}e[\\d]{2})")
+var (
+	episodeRegex = regexp.MustCompile("(?i)(s[\\d]{2}e[\\d]{2})")
+	extensions   = map[string]bool{
+		".mp4": true,
+		".mkv": true,
+	}
+)
 
 func setupLogger(l level.Option) log.Logger {
 	logger := log.NewSyncLogger(log.NewLogfmtLogger(os.Stderr))
@@ -36,6 +44,8 @@ func main() {
 
 	rename := kp.Command("rename", "rename things")
 	renameId := rename.Arg("id", "IMDB show ID").Required().String()
+	renameSrc := rename.Arg("src", "Files to rename").Required().String()
+	renameDest := rename.Arg("dest", "Destination of renamed files").Required().String()
 	renameDryRun := rename.Flag("dry-run", "Don't rename things.").Default("true").Bool()
 
 	command, err := kp.Parse(os.Args[1:])
@@ -46,7 +56,7 @@ func main() {
 
 	switch command {
 	case rename.FullCommand():
-		if err := renameMedia(*renameId, *renameDryRun, logger); err != nil {
+		if err := renameMedia(*renameSrc, *renameDest, *renameId, *renameDryRun, logger); err != nil {
 			level.Error(logger).Log("msg", "failed to lookup show", "err", err)
 			os.Exit(1)
 		}
@@ -113,12 +123,16 @@ func (c *TvMazeClient) ShowByImdb(imdb string) (*Show, error) {
 	params := url.Values{"imdb": {imdb}}
 	r := c.request("lookup/shows", params.Encode())
 
+	level.Debug(c.logger).Log("msg", "looking up show by imdb ID", "id", imdb, "url", r)
 	res, err := c.client.Get(r)
 	if err != nil {
 		return nil, fmt.Errorf("unable to lookup show by ID: %w", err)
 	}
 
 	defer func() { _ = res.Body.Close() }()
+
+	// TODO: Better error handling
+	level.Debug(c.logger).Log("msg", "API response", "status", res.Status)
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("non-success status code: %d", res.StatusCode)
 	}
@@ -133,15 +147,19 @@ func (c *TvMazeClient) ShowByImdb(imdb string) (*Show, error) {
 }
 
 func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
-	path := fmt.Sprintf("shows/%d/episodes", show.Id)
-	r := c.request(path, "")
+	p := fmt.Sprintf("shows/%d/episodes", show.Id)
+	r := c.request(p, "")
 
+	level.Debug(c.logger).Log("msg", "looking up episodes by native ID", "id", show.Id, "url", r)
 	res, err := c.client.Get(r)
 	if err != nil {
 		return nil, fmt.Errorf("unable to lookup episodes by show ID %d: %w", show.Id, err)
 	}
 
 	defer func() { _ = res.Body.Close() }()
+
+	// TODO: Better error handling
+	level.Debug(c.logger).Log("msg", "API response", "status", res.Status)
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("non-success status code %d", res.StatusCode)
 	}
@@ -184,14 +202,18 @@ func NewEpisodeLookup(episodes Episodes, logger log.Logger) *EpisodeLookup {
 }
 
 func (l *EpisodeLookup) FindEpisode(p string) (*Episode, error) {
-	p = strings.ToLower(p)
 	file := path.Base(p)
 
+	level.Debug(l.logger).Log("msg", "extracting season episode from file", "file", file)
 	matched := episodeRegex.FindString(file)
 	if matched == "" {
 		return nil, fmt.Errorf("could not find season and episode in %s", file)
 	}
 
+	// regex is case-insensitive, but we store the lowercase version in the map
+	matched = strings.ToLower(matched)
+
+	level.Debug(l.logger).Log("msg", "using parsed season episode for lookup", "matched", matched)
 	episode, ok := l.lookup[matched]
 	if !ok {
 		return nil, fmt.Errorf("not a known episode: %s", matched)
@@ -200,7 +222,60 @@ func (l *EpisodeLookup) FindEpisode(p string) (*Episode, error) {
 	return &episode, nil
 }
 
-func renameMedia(showId string, dryRun bool, logger log.Logger) error {
+func findFiles(base string) []string {
+	var out []string
+
+	filepath.Walk(base, func(p string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		ext := path.Ext(p)
+		if _, ok := extensions[ext]; ok {
+			out = append(out, p)
+		}
+		return nil
+	})
+
+	return out
+}
+
+func generateName(base string, file string, show *Show, episode *Episode) string {
+	newFile := fmt.Sprintf(
+		"%s-s%0de%02d-%s%s",
+		sanitize(show.Name),
+		episode.Season,
+		episode.Number,
+		sanitize(episode.Name),
+		path.Ext(file),
+	)
+
+	newPath := path.Join(
+		base,
+		sanitize(show.Name),
+		fmt.Sprintf("season_%02d", episode.Number),
+		newFile,
+	)
+
+	return newPath
+}
+
+func sanitize(val string) string {
+	val = strings.Replace(val, " ", "_", -1)
+	val = strings.ToLower(val)
+	return val
+}
+
+func renameMedia(src string, dest string, showId string, dryRun bool, logger log.Logger) error {
+	files := findFiles(src)
+	if len(files) == 0 {
+		return fmt.Errorf("no files found to rename under %s", src)
+	}
+
 	client, err := NewTvMazeClient(apiBase, &http.Client{Timeout: 10 * time.Second}, logger)
 	if err != nil {
 		return err
@@ -217,11 +292,16 @@ func renameMedia(showId string, dryRun bool, logger log.Logger) error {
 	}
 
 	lookup := NewEpisodeLookup(episodes, logger)
-	e, err := lookup.FindEpisode("something/blah-s01e01-blah.mp4")
-	if err != nil {
-		return err
+	for _, file := range files {
+		f := path.Base(file)
+		e, err := lookup.FindEpisode(f)
+		if err != nil {
+			return err
+		}
+
+		newPath := generateName(dest, f, show, e)
+		fmt.Printf("NEW: %+v\n", newPath)
 	}
 
-	fmt.Printf("RES: %+v\n", e)
 	return nil
 }
