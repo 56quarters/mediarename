@@ -6,6 +6,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
+	"regexp"
+	"strings"
+	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -13,9 +17,10 @@ import (
 )
 
 const (
-	apiBase    = "https://api.tvmaze.com/"
-	showLookup = "lookup/shows"
+	apiBase = "https://api.tvmaze.com/"
 )
+
+var episodeRegex = regexp.MustCompile("(s[\\d]{2}e[\\d]{2})")
 
 func setupLogger(l level.Option) log.Logger {
 	logger := log.NewSyncLogger(log.NewLogfmtLogger(os.Stderr))
@@ -41,7 +46,7 @@ func main() {
 
 	switch command {
 	case rename.FullCommand():
-		if err := renameMedia(*renameId, *renameDryRun); err != nil {
+		if err := renameMedia(*renameId, *renameDryRun, logger); err != nil {
 			level.Error(logger).Log("msg", "failed to lookup show", "err", err)
 			os.Exit(1)
 		}
@@ -67,14 +72,14 @@ type ShowExternals struct {
 	Imdb    string `json:"imdb"`
 }
 
-type ShowResponse struct {
+type Show struct {
 	Id        int           `json:"id"`
 	Url       string        `json:"url"`
 	Name      string        `json:"name"`
 	Externals ShowExternals `json:"externals"`
 }
 
-type EpisodeResponse []Episode
+type Episodes []Episode
 
 type Episode struct {
 	Id     int    `json:"id"`
@@ -88,9 +93,10 @@ type Episode struct {
 type TvMazeClient struct {
 	client  *http.Client
 	baseUrl *url.URL
+	logger  log.Logger
 }
 
-func NewTvMazeClient(base string, client *http.Client) (*TvMazeClient, error) {
+func NewTvMazeClient(base string, client *http.Client, logger log.Logger) (*TvMazeClient, error) {
 	u, err := url.Parse(base)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse base URL: %w", err)
@@ -99,10 +105,11 @@ func NewTvMazeClient(base string, client *http.Client) (*TvMazeClient, error) {
 	return &TvMazeClient{
 		client:  client,
 		baseUrl: u,
+		logger:  logger,
 	}, nil
 }
 
-func (c *TvMazeClient) ShowByImdb(imdb string) (*ShowResponse, error) {
+func (c *TvMazeClient) ShowByImdb(imdb string) (*Show, error) {
 	params := url.Values{"imdb": {imdb}}
 	r := c.request("lookup/shows", params.Encode())
 
@@ -111,24 +118,21 @@ func (c *TvMazeClient) ShowByImdb(imdb string) (*ShowResponse, error) {
 		return nil, fmt.Errorf("unable to lookup show by ID: %w", err)
 	}
 
-	defer func() {
-		_ = res.Body.Close()
-	}()
-
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("non-success status code: %d", res.StatusCode)
 	}
 
-	var successResponse ShowResponse
-	err = json.NewDecoder(res.Body).Decode(&successResponse)
+	var show Show
+	err = json.NewDecoder(res.Body).Decode(&show)
 	if err != nil {
 		return nil, fmt.Errorf("unable to deserialize JSON: %w", err)
 	}
 
-	return &successResponse, nil
+	return &show, nil
 }
 
-func (c *TvMazeClient) Episodes(show *ShowResponse) (*EpisodeResponse, error) {
+func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 	path := fmt.Sprintf("shows/%d/episodes", show.Id)
 	r := c.request(path, "")
 
@@ -137,21 +141,18 @@ func (c *TvMazeClient) Episodes(show *ShowResponse) (*EpisodeResponse, error) {
 		return nil, fmt.Errorf("unable to lookup episodes by show ID %d: %w", show.Id, err)
 	}
 
-	defer func() {
-		_ = res.Body.Close()
-	}()
-
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("non-success status code %d", res.StatusCode)
 	}
 
-	var successResponse EpisodeResponse
-	err = json.NewDecoder(res.Body).Decode(&successResponse)
+	var episodes Episodes
+	err = json.NewDecoder(res.Body).Decode(&episodes)
 	if err != nil {
 		return nil, fmt.Errorf("unable to deserialize JSON: %w", err)
 	}
 
-	return &successResponse, nil
+	return episodes, nil
 }
 
 func (c *TvMazeClient) request(path string, params string) string {
@@ -167,8 +168,40 @@ func (c *TvMazeClient) request(path string, params string) string {
 	return requestUrl.String()
 }
 
-func renameMedia(showId string, dryRun bool) error {
-	client, err := NewTvMazeClient(apiBase, &http.Client{})
+type EpisodeLookup struct {
+	lookup map[string]Episode
+	logger log.Logger
+}
+
+func NewEpisodeLookup(episodes Episodes, logger log.Logger) *EpisodeLookup {
+	lookup := make(map[string]Episode)
+
+	for _, e := range episodes {
+		lookup[fmt.Sprintf("s%02de%02d", e.Season, e.Number)] = e
+	}
+
+	return &EpisodeLookup{lookup: lookup, logger: logger}
+}
+
+func (l *EpisodeLookup) FindEpisode(p string) (*Episode, error) {
+	p = strings.ToLower(p)
+	file := path.Base(p)
+
+	matched := episodeRegex.FindString(file)
+	if matched == "" {
+		return nil, fmt.Errorf("could not find season and episode in %s", file)
+	}
+
+	episode, ok := l.lookup[matched]
+	if !ok {
+		return nil, fmt.Errorf("not a known episode: %s", matched)
+	}
+
+	return &episode, nil
+}
+
+func renameMedia(showId string, dryRun bool, logger log.Logger) error {
+	client, err := NewTvMazeClient(apiBase, &http.Client{Timeout: 10 * time.Second}, logger)
 	if err != nil {
 		return err
 	}
@@ -183,7 +216,12 @@ func renameMedia(showId string, dryRun bool) error {
 		return err
 	}
 
-	fmt.Printf("RES1: %+v\n", show)
-	fmt.Printf("RES2: %+v\n", episodes)
+	lookup := NewEpisodeLookup(episodes, logger)
+	e, err := lookup.FindEpisode("something/blah-s01e01-blah.mp4")
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("RES: %+v\n", e)
 	return nil
 }
