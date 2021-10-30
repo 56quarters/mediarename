@@ -10,6 +10,8 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+// TODO: Create errors to use for various cases
+
 var (
 	singleRegex = regexp.MustCompile(`(?i)(s[\d]{2}e[\d]{2})`)
 	multiRegex  = regexp.MustCompile(`(?i)(s[\d]{2}e[\d]{2}-[\d]{2})`)
@@ -29,6 +31,7 @@ func NewEpisodeLookup(episodes Episodes, logger log.Logger) *EpisodeLookup {
 
 	return &EpisodeLookup{lookup: lookup, logger: logger}
 }
+
 
 func (l *EpisodeLookup) FindEpisode(p string) (*Episode, error) {
 	file := path.Base(p)
