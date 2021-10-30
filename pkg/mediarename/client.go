@@ -23,17 +23,15 @@ type ErrorResponse struct {
 	} `json:"previous"`
 }
 
-type ShowExternals struct {
-	TvRage  int    `json:"tvrage"`
-	TheTvDb int    `json:"thetvdb"`
-	Imdb    string `json:"imdb"`
-}
-
 type Show struct {
-	ID        int           `json:"id"`
-	URL       string        `json:"url"`
-	Name      string        `json:"name"`
-	Externals ShowExternals `json:"externals"`
+	ID        int    `json:"id"`
+	URL       string `json:"url"`
+	Name      string `json:"name"`
+	Externals struct {
+		TvRage  int    `json:"tvrage"`
+		TheTvDb int    `json:"thetvdb"`
+		Imdb    string `json:"imdb"`
+	} `json:"externals"`
 }
 
 type Episodes []Episode
