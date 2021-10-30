@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	episodeRegex = regexp.MustCompile("(?i)(s[\\d]{2}e[\\d]{2})")
-	multiRegex = regexp.MustCompile("(?i)(s[\\d]{2}e[\\d]{2}-[\\d]{2})")
+	singleRegex = regexp.MustCompile("(?i)(s[\\d]{2}e[\\d]{2})")
+	multiRegex  = regexp.MustCompile("(?i)(s[\\d]{2}e[\\d]{2}-[\\d]{2})")
 )
 
 type EpisodeLookup struct {
@@ -33,8 +33,9 @@ func NewEpisodeLookup(episodes Episodes, logger log.Logger) *EpisodeLookup {
 func (l *EpisodeLookup) FindEpisode(p string) (*Episode, error) {
 	file := path.Base(p)
 
+	// TODO: Handle multi-episode files. figure out what kodi does: blah-s02e01-02-blah.mkv
 	level.Debug(l.logger).Log("msg", "extracting season episode from file", "file", file)
-	matched := episodeRegex.FindString(file)
+	matched := singleRegex.FindString(file)
 	if matched == "" {
 		return nil, fmt.Errorf("could not find season and episode in %s", file)
 	}

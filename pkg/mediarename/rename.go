@@ -23,6 +23,8 @@ var (
 	}
 )
 
+// TODO: Turn this into something less gross
+
 func findFiles(base string) []string {
 	var out []string
 
@@ -58,7 +60,7 @@ func generateName(base string, file string, show *Show, episode *Episode) string
 	newPath := path.Join(
 		base,
 		sanitize(show.Name),
-		fmt.Sprintf("season_%02d", episode.Number),
+		fmt.Sprintf("season_%02d", episode.Season),
 		newFile,
 	)
 
