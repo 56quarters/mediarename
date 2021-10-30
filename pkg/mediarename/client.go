@@ -30,8 +30,8 @@ type ShowExternals struct {
 }
 
 type Show struct {
-	Id        int           `json:"id"`
-	Url       string        `json:"url"`
+	ID        int           `json:"id"`
+	URL       string        `json:"url"`
 	Name      string        `json:"name"`
 	Externals ShowExternals `json:"externals"`
 }
@@ -39,8 +39,8 @@ type Show struct {
 type Episodes []Episode
 
 type Episode struct {
-	Id     int    `json:"id"`
-	Url    string `json:"url"`
+	ID     int    `json:"id"`
+	URL    string `json:"url"`
 	Name   string `json:"name"`
 	Season int    `json:"season"`
 	Number int    `json:"number"`
@@ -49,7 +49,7 @@ type Episode struct {
 
 type TvMazeClient struct {
 	client  *http.Client
-	baseUrl *url.URL
+	baseURL *url.URL
 	logger  log.Logger
 }
 
@@ -61,7 +61,7 @@ func NewTvMazeClient(base string, client *http.Client, logger log.Logger) (*TvMa
 
 	return &TvMazeClient{
 		client:  client,
-		baseUrl: u,
+		baseURL: u,
 		logger:  logger,
 	}, nil
 }
@@ -94,13 +94,13 @@ func (c *TvMazeClient) ShowByImdb(imdb string) (*Show, error) {
 }
 
 func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
-	p := fmt.Sprintf("shows/%d/episodes", show.Id)
+	p := fmt.Sprintf("shows/%d/episodes", show.ID)
 	r := c.request(p, "")
 
-	level.Debug(c.logger).Log("msg", "looking up episodes by native ID", "id", show.Id, "url", r)
+	level.Debug(c.logger).Log("msg", "looking up episodes by native ID", "id", show.ID, "url", r)
 	res, err := c.client.Get(r)
 	if err != nil {
-		return nil, fmt.Errorf("unable to lookup episodes by show ID %d: %w", show.Id, err)
+		return nil, fmt.Errorf("unable to lookup episodes by show ID %d: %w", show.ID, err)
 	}
 
 	defer func() { _ = res.Body.Close() }()
@@ -121,15 +121,14 @@ func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 }
 
 func (c *TvMazeClient) request(path string, params string) string {
-	requestUrl := url.URL{
-		Scheme:   c.baseUrl.Scheme,
-		Opaque:   c.baseUrl.Opaque,
-		User:     c.baseUrl.User,
-		Host:     c.baseUrl.Host,
+	requestURL := url.URL{
+		Scheme:   c.baseURL.Scheme,
+		Opaque:   c.baseURL.Opaque,
+		User:     c.baseURL.User,
+		Host:     c.baseURL.Host,
 		Path:     path,
 		RawQuery: params,
 	}
 
-	return requestUrl.String()
+	return requestURL.String()
 }
-

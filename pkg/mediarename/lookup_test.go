@@ -1,6 +1,8 @@
 package mediarename
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestEpisodeLookup_FindEpisode(t *testing.T) {
 	t.Run("no match in file name", func(t *testing.T) {

@@ -23,7 +23,7 @@ func main() {
 	kp := kingpin.New(os.Args[0], "mediarename: TBD")
 
 	rename := kp.Command("rename", "rename things")
-	renameId := rename.Arg("id", "IMDB show ID").Required().String()
+	renameID := rename.Arg("id", "IMDB show ID").Required().String()
 	renameSrc := rename.Arg("src", "Files to rename").Required().String()
 	renameDest := rename.Arg("dest", "Destination of renamed files").Required().String()
 	renameDryRun := rename.Flag("dry-run", "Don't rename things.").Default("true").Bool()
@@ -36,7 +36,7 @@ func main() {
 
 	switch command {
 	case rename.FullCommand():
-		if err := mediarename.RenameMedia(*renameSrc, *renameDest, *renameId, *renameDryRun, logger); err != nil {
+		if err := mediarename.RenameMedia(*renameSrc, *renameDest, *renameID, *renameDryRun, logger); err != nil {
 			level.Error(logger).Log("msg", "failed to lookup show", "err", err)
 			os.Exit(1)
 		}

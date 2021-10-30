@@ -28,7 +28,7 @@ var (
 func findFiles(base string) []string {
 	var out []string
 
-	filepath.Walk(base, func(p string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(base, func(p string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -43,6 +43,11 @@ func findFiles(base string) []string {
 		}
 		return nil
 	})
+
+	// TODO: error handling
+	if err != nil {
+		panic(err)
+	}
 
 	return out
 }
@@ -73,7 +78,7 @@ func sanitize(val string) string {
 	return val
 }
 
-func RenameMedia(src string, dest string, showId string, dryRun bool, logger log.Logger) error {
+func RenameMedia(src string, dest string, showID string, dryRun bool, logger log.Logger) error {
 	files := findFiles(src)
 	if len(files) == 0 {
 		return fmt.Errorf("no files found to rename under %s", src)
@@ -84,7 +89,7 @@ func RenameMedia(src string, dest string, showId string, dryRun bool, logger log
 		return err
 	}
 
-	show, err := client.ShowByImdb(showId)
+	show, err := client.ShowByImdb(showID)
 	if err != nil {
 		return err
 	}

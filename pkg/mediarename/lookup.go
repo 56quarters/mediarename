@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	singleRegex = regexp.MustCompile("(?i)(s[\\d]{2}e[\\d]{2})")
-	multiRegex  = regexp.MustCompile("(?i)(s[\\d]{2}e[\\d]{2}-[\\d]{2})")
+	singleRegex = regexp.MustCompile(`(?i)(s[\d]{2}e[\d]{2})`)
+	multiRegex  = regexp.MustCompile(`(?i)(s[\d]{2}e[\d]{2}-[\d]{2})`)
 )
 
 type EpisodeLookup struct {
