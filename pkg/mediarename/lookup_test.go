@@ -30,36 +30,36 @@ var testEpisodes = Episodes{
 func TestEpisodeLookup_FindEpisode(t *testing.T) {
 	t.Run("no match in file name", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, log.NewNopLogger())
-		e, err := lookup.FindEpisode("show-season_1_episode_1-pilot.mkv")
+		episodes, err := lookup.FindEpisodes("show-season_1_episode_1-pilot.mkv")
 
-		assert.Nil(t, e)
-		assert.Error(t, err)
+		assert.Empty(t, episodes)
+		assert.ErrorIs(t, err, ErrBadMetadata)
 	})
 
 	t.Run("no episode available", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, log.NewNopLogger())
-		e, err := lookup.FindEpisode("show-s01e03-something.mkv")
+		episodes, err := lookup.FindEpisodes("show-s01e03-something.mkv")
 
-		assert.Nil(t, e)
-		assert.Error(t, err)
+		assert.Empty(t, episodes)
+		assert.ErrorIs(t, err, ErrUnknownEpisode)
 	})
 
-	t.Run("multi-episode match in file name", func(t *testing.T) {
-		// TODO: Handle multi-episode case
-		t.Skip()
-
+	t.Run("multi episode match in file name", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, log.NewNopLogger())
-		e, err := lookup.FindEpisode("show-s01e01-02-pilot.mkv")
-
-		assert.Nil(t, e)
-		assert.Error(t, err)
-	})
-
-	t.Run("success case", func(t *testing.T) {
-		lookup := NewEpisodeLookup(testEpisodes, log.NewNopLogger())
-		e, err := lookup.FindEpisode("show-s01e01-pilot.mkv")
+		episodes, err := lookup.FindEpisodes("show-s01e01-02-pilot.mkv")
 
 		require.NoError(t, err)
-		assert.Equal(t, &testEpisodes[0], e)
+		require.Len(t, episodes, 2)
+		assert.Equal(t, &testEpisodes[0], episodes[0])
+		assert.Equal(t, &testEpisodes[1], episodes[1])
+	})
+
+	t.Run("single episode match in file name", func(t *testing.T) {
+		lookup := NewEpisodeLookup(testEpisodes, log.NewNopLogger())
+		episodes, err := lookup.FindEpisodes("show-s01e01-pilot.mkv")
+
+		require.NoError(t, err)
+		require.Len(t, episodes, 1)
+		assert.Equal(t, &testEpisodes[0], episodes[0])
 	})
 }

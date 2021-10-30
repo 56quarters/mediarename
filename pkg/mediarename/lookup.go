@@ -1,6 +1,7 @@
 package mediarename
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"regexp"
@@ -10,11 +11,11 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-// TODO: Create errors to use for various cases
-
 var (
-	singleRegex = regexp.MustCompile(`(?i)(s[\d]{2}e[\d]{2})`)
-	multiRegex  = regexp.MustCompile(`(?i)(s[\d]{2}e[\d]{2}-[\d]{2})`)
+	ErrBadMetadata    = errors.New("bad season or episode metadata")
+	ErrUnknownEpisode = errors.New("unknown episode")
+
+	multiRegex = regexp.MustCompile(`(?i)(s[\d]{2})(e[\d]{2})-?([\d]{2})?`)
 )
 
 type EpisodeLookup struct {
@@ -32,25 +33,37 @@ func NewEpisodeLookup(episodes Episodes, logger log.Logger) *EpisodeLookup {
 	return &EpisodeLookup{lookup: lookup, logger: logger}
 }
 
-
-func (l *EpisodeLookup) FindEpisode(p string) (*Episode, error) {
+func (l *EpisodeLookup) FindEpisodes(p string) ([]*Episode, error) {
 	file := path.Base(p)
 
-	// TODO: Handle multi-episode files. figure out what kodi does: blah-s02e01-02-blah.mkv
 	level.Debug(l.logger).Log("msg", "extracting season episode from file", "file", file)
-	matched := singleRegex.FindString(file)
-	if matched == "" {
-		return nil, fmt.Errorf("could not find season and episode in %s", file)
+	matched := multiRegex.FindStringSubmatch(file)
+	if matched == nil {
+		return nil, fmt.Errorf("%w: could not find season and episode in %s", ErrBadMetadata, file)
 	}
 
-	// regex is case-insensitive, but we store the lowercase version in the map
-	matched = strings.ToLower(matched)
-
-	level.Debug(l.logger).Log("msg", "using parsed season episode for lookup", "matched", matched)
-	episode, ok := l.lookup[matched]
-	if !ok {
-		return nil, fmt.Errorf("not a known episode: %s", matched)
+	var lookup []string
+	if len(matched) == 4 {
+		if matched[3] == "" {
+			// Last match is empty, this must be the single episode case
+			lookup = append(lookup, strings.ToLower(matched[1]+matched[2]))
+		} else {
+			// last match has something in it, multiple episode case
+			lookup = append(lookup, strings.ToLower(matched[1]+matched[2]))
+			lookup = append(lookup, strings.ToLower(matched[1]+"e"+matched[3]))
+		}
 	}
 
-	return &episode, nil
+	var out []*Episode
+	for _, meta := range lookup {
+		level.Debug(l.logger).Log("msg", "using parsed season episode for lookup", "meta", meta)
+		e, ok := l.lookup[meta]
+		if !ok {
+			return nil, fmt.Errorf("%w: trying to match %s from %s", ErrUnknownEpisode, meta, file)
+		}
+
+		out = append(out, &e)
+	}
+
+	return out, nil
 }

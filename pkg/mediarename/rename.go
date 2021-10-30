@@ -17,9 +17,9 @@ const (
 )
 
 var (
-	extensions = map[string]bool{
-		".mp4": true,
-		".mkv": true,
+	extensions = map[string]struct{}{
+		".mp4": {},
+		".mkv": {},
 	}
 )
 
@@ -101,13 +101,14 @@ func RenameMedia(src string, dest string, showID string, dryRun bool, logger log
 
 	lookup := NewEpisodeLookup(episodes, logger)
 	for _, file := range files {
+		// TODO: Handle multiple episode matches
 		f := path.Base(file)
-		e, err := lookup.FindEpisode(f)
+		e, err := lookup.FindEpisodes(f)
 		if err != nil {
 			return err
 		}
 
-		newPath := generateName(dest, f, show, e)
+		newPath := generateName(dest, f, show, e[0])
 		fmt.Printf("NEW: %+v\n", newPath)
 	}
 
