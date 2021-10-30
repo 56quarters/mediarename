@@ -15,7 +15,7 @@ var (
 	ErrBadMetadata    = errors.New("bad season or episode metadata")
 	ErrUnknownEpisode = errors.New("unknown episode")
 
-	multiRegex = regexp.MustCompile(`(?i)(s[\d]{2})(e[\d]{2})-?([\d]{2})?`)
+	multiRegex = regexp.MustCompile(`(?i)(s[\d]{2})(e[\d]{2})-?(e[\d]{2})?`)
 )
 
 type EpisodeLookup struct {
@@ -42,6 +42,7 @@ func (l *EpisodeLookup) FindEpisodes(p string) ([]*Episode, error) {
 		return nil, fmt.Errorf("%w: could not find season and episode in %s", ErrBadMetadata, file)
 	}
 
+	// Note that we lowercase everything here since the episode tags are stored as lowercase
 	var lookup []string
 	if len(matched) == 4 {
 		if matched[3] == "" {
@@ -50,7 +51,7 @@ func (l *EpisodeLookup) FindEpisodes(p string) ([]*Episode, error) {
 		} else {
 			// last match has something in it, multiple episode case
 			lookup = append(lookup, strings.ToLower(matched[1]+matched[2]))
-			lookup = append(lookup, strings.ToLower(matched[1]+"e"+matched[3]))
+			lookup = append(lookup, strings.ToLower(matched[1]+matched[3]))
 		}
 	}
 

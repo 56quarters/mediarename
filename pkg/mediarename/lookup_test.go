@@ -44,9 +44,19 @@ func TestEpisodeLookup_FindEpisode(t *testing.T) {
 		assert.ErrorIs(t, err, ErrUnknownEpisode)
 	})
 
-	t.Run("multi episode match in file name", func(t *testing.T) {
+	t.Run("multi episode match in file name lowercase", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, log.NewNopLogger())
-		episodes, err := lookup.FindEpisodes("show-s01e01-02-pilot.mkv")
+		episodes, err := lookup.FindEpisodes("show-s01e01-e02-pilot.mkv")
+
+		require.NoError(t, err)
+		require.Len(t, episodes, 2)
+		assert.Equal(t, &testEpisodes[0], episodes[0])
+		assert.Equal(t, &testEpisodes[1], episodes[1])
+	})
+
+	t.Run("multi episode match in file name uppercase", func(t *testing.T) {
+		lookup := NewEpisodeLookup(testEpisodes, log.NewNopLogger())
+		episodes, err := lookup.FindEpisodes("show-S01E01-E02-pilot.mkv")
 
 		require.NoError(t, err)
 		require.Len(t, episodes, 2)
