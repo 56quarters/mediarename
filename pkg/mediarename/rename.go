@@ -52,7 +52,7 @@ func findFiles(base string) []string {
 	return out
 }
 
-func generateName(base string, file string, show *Show, episode *Episode) string {
+func generateName(base string, file string, show *Show, episode Episode) string {
 	newFile := fmt.Sprintf(
 		"%s-s%0de%02d-%s%s",
 		sanitize(show.Name),

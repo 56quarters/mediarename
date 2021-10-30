@@ -33,7 +33,7 @@ func NewEpisodeLookup(episodes Episodes, logger log.Logger) *EpisodeLookup {
 	return &EpisodeLookup{lookup: lookup, logger: logger}
 }
 
-func (l *EpisodeLookup) FindEpisodes(p string) ([]*Episode, error) {
+func (l *EpisodeLookup) FindEpisodes(p string) (Episodes, error) {
 	file := path.Base(p)
 
 	level.Debug(l.logger).Log("msg", "extracting season episode from file", "file", file)
@@ -55,7 +55,7 @@ func (l *EpisodeLookup) FindEpisodes(p string) ([]*Episode, error) {
 		}
 	}
 
-	var out []*Episode
+	var out []Episode
 	for _, meta := range lookup {
 		level.Debug(l.logger).Log("msg", "using parsed season episode for lookup", "meta", meta)
 		e, ok := l.lookup[meta]
@@ -63,7 +63,7 @@ func (l *EpisodeLookup) FindEpisodes(p string) ([]*Episode, error) {
 			return nil, fmt.Errorf("%w: trying to match %s from %s", ErrUnknownEpisode, meta, file)
 		}
 
-		out = append(out, &e)
+		out = append(out, e)
 	}
 
 	return out, nil

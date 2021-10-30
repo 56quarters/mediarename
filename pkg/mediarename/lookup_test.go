@@ -50,8 +50,8 @@ func TestEpisodeLookup_FindEpisode(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Len(t, episodes, 2)
-		assert.Equal(t, &testEpisodes[0], episodes[0])
-		assert.Equal(t, &testEpisodes[1], episodes[1])
+		assert.Equal(t, testEpisodes[0], episodes[0])
+		assert.Equal(t, testEpisodes[1], episodes[1])
 	})
 
 	t.Run("multi episode match in file name uppercase", func(t *testing.T) {
@@ -60,8 +60,8 @@ func TestEpisodeLookup_FindEpisode(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Len(t, episodes, 2)
-		assert.Equal(t, &testEpisodes[0], episodes[0])
-		assert.Equal(t, &testEpisodes[1], episodes[1])
+		assert.Equal(t, testEpisodes[0], episodes[0])
+		assert.Equal(t, testEpisodes[1], episodes[1])
 	})
 
 	t.Run("single episode match in file name", func(t *testing.T) {
@@ -70,6 +70,6 @@ func TestEpisodeLookup_FindEpisode(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Len(t, episodes, 1)
-		assert.Equal(t, &testEpisodes[0], episodes[0])
+		assert.Equal(t, testEpisodes[0], episodes[0])
 	})
 }
