@@ -45,6 +45,16 @@ type Episode struct {
 	Type   string `json:"type"`
 }
 
+type ImdbID string
+
+//
+type MediaClient interface {
+	//
+	ShowByImdb(imdb ImdbID) (*Show, error)
+	//
+	Episodes(show *Show) (Episodes, error)
+}
+
 type TvMazeClient struct {
 	client  *http.Client
 	baseURL *url.URL
@@ -64,8 +74,9 @@ func NewTvMazeClient(base string, client *http.Client, logger log.Logger) (*TvMa
 	}, nil
 }
 
-func (c *TvMazeClient) ShowByImdb(imdb string) (*Show, error) {
-	params := url.Values{"imdb": {imdb}}
+// ShowByImdb implements the MediaClient interface
+func (c *TvMazeClient) ShowByImdb(imdb ImdbID) (*Show, error) {
+	params := url.Values{"imdb": {string(imdb)}}
 	r := c.request("lookup/shows", params.Encode())
 
 	level.Debug(c.logger).Log("msg", "looking up show by imdb ID", "id", imdb, "url", r)
@@ -91,6 +102,7 @@ func (c *TvMazeClient) ShowByImdb(imdb string) (*Show, error) {
 	return &show, nil
 }
 
+// Episodes implements the MediaClient interface
 func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 	p := fmt.Sprintf("shows/%d/episodes", show.ID)
 	r := c.request(p, "")

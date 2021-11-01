@@ -3,29 +3,27 @@ package mediarename
 import (
 	"fmt"
 	"io/fs"
-	"net/http"
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
-const (
-	apiBase = "https://api.tvmaze.com/"
-)
+type Renamer struct {
+	client MediaClient
+	logger log.Logger
+}
 
-var (
-	extensions = map[string]struct{}{
-		".mp4": {},
-		".mkv": {},
+func NewRenamer(client MediaClient, logger log.Logger) *Renamer {
+	return &Renamer{
+		client: client,
+		logger: logger,
 	}
-)
+}
 
-// TODO: Turn this into something less gross
-
-func findFiles(base string) []string {
+func (r *Renamer) FindFiles(base string, extensions map[string]struct{}) ([]string, error) {
 	var out []string
 
 	err := filepath.Walk(base, func(p string, info fs.FileInfo, err error) error {
@@ -41,76 +39,89 @@ func findFiles(base string) []string {
 		if _, ok := extensions[ext]; ok {
 			out = append(out, p)
 		}
+
 		return nil
 	})
 
-	// TODO: error handling
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("unable to find files: %w", err)
 	}
 
-	return out
+	return out, nil
 }
 
-func generateName(base string, file string, show *Show, episode Episode) string {
+func (r *Renamer) GenerateNames(files []string, dest string, imdb ImdbID) (map[string]string, error) {
+	show, err := r.client.ShowByImdb(imdb)
+	if err != nil {
+		return nil, fmt.Errorf("show lookup error for imdb ID %s: %w", imdb, err)
+	}
+
+	episodes, err := r.client.Episodes(show)
+	if err != nil {
+		return nil, fmt.Errorf("episode lookup error show %s (%d): %w", show.Name, show.ID, err)
+	}
+
+	lookup := NewEpisodeLookup(episodes, r.logger)
+	out := make(map[string]string)
+
+	for _, file := range files {
+		matched, err := lookup.FindEpisodes(file)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate new name for %s: %w", file, err)
+		}
+
+		newName := r.nameFromEpisodes(file, dest, show, matched)
+		out[file] = newName
+	}
+
+	return out, nil
+}
+
+func (r *Renamer) nameFromEpisodes(file string, dest string, show *Show, episodes Episodes) string {
+	ext := path.Ext(file)
+
+	// If there are multiple episodes that match for this particular file, such as when a
+	// finale is two episodes but aired at the same time and thus the same file: use the first
+	// match to generate the file name but append each episode after that with "-eXX" after
+	// the primary tag.
+	first := episodes[0]
+	episodes = episodes[1:]
+	tag := strings.Builder{}
+	tag.WriteString(fmt.Sprintf("s%02de%02d", first.Season, first.Number))
+
+	for _, e := range episodes {
+		tag.WriteString(fmt.Sprintf("-e%02d", e.Number))
+	}
+
 	newFile := fmt.Sprintf(
-		"%s-s%0de%02d-%s%s",
+		"%s-%s-%s%s",
 		sanitize(show.Name),
-		episode.Season,
-		episode.Number,
-		sanitize(episode.Name),
-		path.Ext(file),
+		tag.String(),
+		sanitize(first.Name),
+		ext,
 	)
 
-	newPath := path.Join(
-		base,
+	return path.Join(
+		dest,
 		sanitize(show.Name),
-		fmt.Sprintf("season_%02d", episode.Season),
+		fmt.Sprintf("season_%02d", first.Season),
 		newFile,
 	)
+}
 
-	return newPath
+func (r *Renamer) RenameFiles(renames map[string]string) error {
+	for k, v := range renames {
+		level.Info(r.logger).Log("old", k, "new", v)
+	}
+
+	return nil
 }
 
 func sanitize(val string) string {
 	val = strings.Replace(val, " ", "_", -1)
+	val = strings.Replace(val, ":", "", -1)
+	val = strings.Replace(val, "'", "", -1)
+	val = strings.Replace(val, "&", "and", -1)
 	val = strings.ToLower(val)
 	return val
-}
-
-func RenameMedia(src string, dest string, showID string, dryRun bool, logger log.Logger) error {
-	files := findFiles(src)
-	if len(files) == 0 {
-		return fmt.Errorf("no files found to rename under %s", src)
-	}
-
-	client, err := NewTvMazeClient(apiBase, &http.Client{Timeout: 10 * time.Second}, logger)
-	if err != nil {
-		return err
-	}
-
-	show, err := client.ShowByImdb(showID)
-	if err != nil {
-		return err
-	}
-
-	episodes, err := client.Episodes(show)
-	if err != nil {
-		return err
-	}
-
-	lookup := NewEpisodeLookup(episodes, logger)
-	for _, file := range files {
-		// TODO: Handle multiple episode matches
-		f := path.Base(file)
-		e, err := lookup.FindEpisodes(f)
-		if err != nil {
-			return err
-		}
-
-		newPath := generateName(dest, f, show, e[0])
-		fmt.Printf("NEW: %+v\n", newPath)
-	}
-
-	return nil
 }
