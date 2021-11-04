@@ -39,7 +39,7 @@ func main() {
 	renameID := rename.Arg("id", "IMDB show ID").Required().String()
 	renameSrc := rename.Arg("src", "Files to rename").Required().String()
 	renameDest := rename.Arg("dest", "Destination of renamed files").Required().String()
-	//renameDryRun := rename.Flag("dry-run", "Don't rename things.").Default("true").Bool()
+	renameDryRun := rename.Flag("dry-run", "Don't rename things.").Default("true").Bool()
 
 	command, err := kp.Parse(os.Args[1:])
 	if err != nil {
@@ -49,21 +49,21 @@ func main() {
 
 	switch command {
 	case rename.FullCommand():
-		if err := RenameMedia(*renameSrc, *renameDest, *renameID, logger); err != nil {
+		if err := RenameMedia(*renameSrc, *renameDest, *renameID, *renameDryRun, logger); err != nil {
 			level.Error(logger).Log("msg", "failed to lookup show", "err", err)
 			os.Exit(1)
 		}
 	}
 }
 
-func RenameMedia(src string, dest string, showID string, logger log.Logger) error {
+func RenameMedia(src string, dest string, showID string, dryRun bool, logger log.Logger) error {
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	client, err := mediarename.NewTvMazeClient(apiBase, httpClient, logger)
 	if err != nil {
 		return err
 	}
 
-	renamer := mediarename.NewRenamer(client, logger)
+	renamer := mediarename.NewRenamer(client, dryRun, logger)
 	files, err := renamer.FindFiles(src, extensions)
 	if err != nil {
 		return err

@@ -3,6 +3,7 @@ package mediarename
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -11,14 +12,30 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+type RenameType int
+
+const (
+	RenameCopy RenameType = iota
+	RenameMove
+)
+
+type Rename struct {
+	Old string
+	New string
+}
+
 type Renamer struct {
 	client MediaClient
+	op     RenameType // ignored ATM
+	dryrun bool
 	logger log.Logger
 }
 
-func NewRenamer(client MediaClient, logger log.Logger) *Renamer {
+func NewRenamer(client MediaClient, dryrun bool, logger log.Logger) *Renamer {
 	return &Renamer{
 		client: client,
+		op:     RenameMove,
+		dryrun: dryrun,
 		logger: logger,
 	}
 }
@@ -50,7 +67,9 @@ func (r *Renamer) FindFiles(base string, extensions map[string]struct{}) ([]stri
 	return out, nil
 }
 
-func (r *Renamer) GenerateNames(files []string, dest string, imdb ImdbID) (map[string]string, error) {
+// TODO: Return a sorted list of a two element struct instead of a map for nicer output
+
+func (r *Renamer) GenerateNames(files []string, dest string, imdb ImdbID) ([]Rename, error) {
 	show, err := r.client.ShowByImdb(imdb)
 	if err != nil {
 		return nil, fmt.Errorf("show lookup error for imdb ID %s: %w", imdb, err)
@@ -62,7 +81,7 @@ func (r *Renamer) GenerateNames(files []string, dest string, imdb ImdbID) (map[s
 	}
 
 	lookup := NewEpisodeLookup(episodes, r.logger)
-	out := make(map[string]string)
+	out := make([]Rename, 0, len(episodes))
 
 	for _, file := range files {
 		matched, err := lookup.FindEpisodes(file)
@@ -71,7 +90,10 @@ func (r *Renamer) GenerateNames(files []string, dest string, imdb ImdbID) (map[s
 		}
 
 		newName := r.nameFromEpisodes(file, dest, show, matched)
-		out[file] = newName
+		out = append(out, Rename{
+			Old: file,
+			New: newName,
+		})
 	}
 
 	return out, nil
@@ -80,8 +102,8 @@ func (r *Renamer) GenerateNames(files []string, dest string, imdb ImdbID) (map[s
 func (r *Renamer) nameFromEpisodes(file string, dest string, show *Show, episodes Episodes) string {
 	ext := path.Ext(file)
 
-	// If there are multiple episodes that match for this particular file, such as when a
-	// finale is two episodes but aired at the same time and thus the same file: use the first
+	// If there are multiple episodes that match for this particular file (such as when a
+	// finale is two episodes but aired at the same time and thus the same file): use the first
 	// match to generate the file name but append each episode after that with "-eXX" after
 	// the primary tag.
 	first := episodes[0]
@@ -109,9 +131,22 @@ func (r *Renamer) nameFromEpisodes(file string, dest string, show *Show, episode
 	)
 }
 
-func (r *Renamer) RenameFiles(renames map[string]string) error {
-	for k, v := range renames {
-		level.Info(r.logger).Log("old", k, "new", v)
+func (r *Renamer) RenameFiles(renames []Rename) error {
+	for _, op := range renames {
+		level.Info(r.logger).Log("old", op.Old, "new", op.New)
+
+		if !r.dryrun {
+			dir := path.Dir(op.New)
+			err := os.MkdirAll(dir, 0755)
+			if err != nil {
+				return fmt.Errorf("unable to create parent directory %s: %w", dir, err)
+			}
+
+			err = os.Rename(op.Old, op.New)
+			if err != nil {
+				return fmt.Errorf("unable to rename %s to %s: %w", op.Old, op.New, err)
+			}
+		}
 	}
 
 	return nil
