@@ -32,14 +32,14 @@ func setupLogger(l level.Option) log.Logger {
 
 func main() {
 	logger := setupLogger(level.AllowDebug())
+	kp := kingpin.New(os.Args[0], "mediarename: rename media files based on their metadata")
 
-	kp := kingpin.New(os.Args[0], "mediarename: TBD")
-
-	rename := kp.Command("rename", "rename things")
-	renameID := rename.Arg("id", "IMDB show ID").Required().String()
-	renameSrc := rename.Arg("src", "Files to rename").Required().String()
-	renameDest := rename.Arg("dest", "Destination of renamed files").Required().String()
-	renameDryRun := rename.Flag("dry-run", "Don't rename things.").Default("true").Bool()
+	tv := kp.Command("tv", "rename TV episodes based on show and episode metadata ")
+	tvID := tv.Arg("id", "IMDB show ID").Required().String()
+	tvSrc := tv.Arg("src", "Directory of files to rename").Required().String()
+	tvDest := tv.Arg("dest", "Destination of renamed files").Required().String()
+	// TODO: This option is named weird since it's on by default and you need to pass '--no-dry-run'
+	tvDryRun := tv.Flag("dry-run", "Don't rename things.").Default("true").Bool()
 
 	command, err := kp.Parse(os.Args[1:])
 	if err != nil {
@@ -48,22 +48,22 @@ func main() {
 	}
 
 	switch command {
-	case rename.FullCommand():
-		if err := RenameMedia(*renameSrc, *renameDest, *renameID, *renameDryRun, logger); err != nil {
-			level.Error(logger).Log("msg", "failed to lookup show", "err", err)
+	case tv.FullCommand():
+		if err := RenameTv(*tvSrc, *tvDest, *tvID, *tvDryRun, logger); err != nil {
+			level.Error(logger).Log("msg", "failed to rename tv episodes", "err", err)
 			os.Exit(1)
 		}
 	}
 }
 
-func RenameMedia(src string, dest string, showID string, dryRun bool, logger log.Logger) error {
+func RenameTv(src string, dest string, showID string, dryRun bool, logger log.Logger) error {
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	client, err := mediarename.NewTvMazeClient(apiBase, httpClient, logger)
 	if err != nil {
 		return err
 	}
 
-	renamer := mediarename.NewRenamer(client, dryRun, logger)
+	renamer := mediarename.NewTvRenamer(client, dryRun, logger)
 	files, err := renamer.FindFiles(src, extensions)
 	if err != nil {
 		return err

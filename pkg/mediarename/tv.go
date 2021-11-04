@@ -24,15 +24,15 @@ type Rename struct {
 	New string
 }
 
-type Renamer struct {
+type TvRenamer struct {
 	client MediaClient
 	op     RenameType // ignored ATM
 	dryrun bool
 	logger log.Logger
 }
 
-func NewRenamer(client MediaClient, dryrun bool, logger log.Logger) *Renamer {
-	return &Renamer{
+func NewTvRenamer(client MediaClient, dryrun bool, logger log.Logger) *TvRenamer {
+	return &TvRenamer{
 		client: client,
 		op:     RenameMove,
 		dryrun: dryrun,
@@ -40,7 +40,7 @@ func NewRenamer(client MediaClient, dryrun bool, logger log.Logger) *Renamer {
 	}
 }
 
-func (r *Renamer) FindFiles(base string, extensions map[string]struct{}) ([]string, error) {
+func (r *TvRenamer) FindFiles(base string, extensions map[string]struct{}) ([]string, error) {
 	var out []string
 
 	err := filepath.Walk(base, func(p string, info fs.FileInfo, err error) error {
@@ -69,7 +69,7 @@ func (r *Renamer) FindFiles(base string, extensions map[string]struct{}) ([]stri
 
 // TODO: Return a sorted list of a two element struct instead of a map for nicer output
 
-func (r *Renamer) GenerateNames(files []string, dest string, imdb ImdbID) ([]Rename, error) {
+func (r *TvRenamer) GenerateNames(files []string, dest string, imdb ImdbID) ([]Rename, error) {
 	show, err := r.client.ShowByImdb(imdb)
 	if err != nil {
 		return nil, fmt.Errorf("show lookup error for imdb ID %s: %w", imdb, err)
@@ -99,7 +99,7 @@ func (r *Renamer) GenerateNames(files []string, dest string, imdb ImdbID) ([]Ren
 	return out, nil
 }
 
-func (r *Renamer) nameFromEpisodes(file string, dest string, show *Show, episodes Episodes) string {
+func (r *TvRenamer) nameFromEpisodes(file string, dest string, show *Show, episodes Episodes) string {
 	ext := path.Ext(file)
 
 	// If there are multiple episodes that match for this particular file (such as when a
@@ -131,7 +131,7 @@ func (r *Renamer) nameFromEpisodes(file string, dest string, show *Show, episode
 	)
 }
 
-func (r *Renamer) RenameFiles(renames []Rename) error {
+func (r *TvRenamer) RenameFiles(renames []Rename) error {
 	for _, op := range renames {
 		level.Info(r.logger).Log("old", op.Old, "new", op.New)
 
