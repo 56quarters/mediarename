@@ -86,7 +86,8 @@ func (r *TvRenamer) GenerateNames(files []string, dest string, imdb ImdbID) ([]R
 	for _, file := range files {
 		matched, err := lookup.FindEpisodes(file)
 		if err != nil {
-			return nil, fmt.Errorf("unable to generate new name for %s: %w", file, err)
+			level.Warn(r.logger).Log("msg", "unable to generate new name for file", "file", file, "err", err)
+			continue
 		}
 
 		newName := r.nameFromEpisodes(file, dest, show, matched)
