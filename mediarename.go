@@ -39,7 +39,7 @@ func main() {
 	tvSrc := tv.Arg("src", "Directory of files to rename").Required().String()
 	tvDest := tv.Arg("dest", "Destination of renamed files").Required().String()
 	// TODO: This option is named weird since it's on by default and you need to pass '--no-dry-run'
-	tvDryRun := tv.Flag("dry-run", "Don't rename things.").Default("true").Bool()
+	tvCommit := tv.Flag("commit", "Actually rename things instead of just printing new names.").Default("false").Bool()
 
 	command, err := kp.Parse(os.Args[1:])
 	if err != nil {
@@ -49,21 +49,21 @@ func main() {
 
 	switch command {
 	case tv.FullCommand():
-		if err := RenameTv(*tvSrc, *tvDest, *tvID, *tvDryRun, logger); err != nil {
+		if err := RenameTv(*tvSrc, *tvDest, *tvID, *tvCommit, logger); err != nil {
 			level.Error(logger).Log("msg", "failed to rename tv episodes", "err", err)
 			os.Exit(1)
 		}
 	}
 }
 
-func RenameTv(src string, dest string, showID string, dryRun bool, logger log.Logger) error {
+func RenameTv(src string, dest string, showID string, commit bool, logger log.Logger) error {
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	client, err := mediarename.NewTvMazeClient(apiBase, httpClient, logger)
 	if err != nil {
 		return err
 	}
 
-	renamer := mediarename.NewTvRenamer(client, dryRun, logger)
+	renamer := mediarename.NewTvRenamer(client, commit, logger)
 	files, err := renamer.FindFiles(src, extensions)
 	if err != nil {
 		return err

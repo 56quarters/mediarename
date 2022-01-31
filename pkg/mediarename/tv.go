@@ -27,15 +27,15 @@ type Rename struct {
 type TvRenamer struct {
 	client MediaClient
 	op     RenameType // ignored ATM
-	dryrun bool
+	commit bool
 	logger log.Logger
 }
 
-func NewTvRenamer(client MediaClient, dryrun bool, logger log.Logger) *TvRenamer {
+func NewTvRenamer(client MediaClient, commit bool, logger log.Logger) *TvRenamer {
 	return &TvRenamer{
 		client: client,
 		op:     RenameMove,
-		dryrun: dryrun,
+		commit: commit,
 		logger: logger,
 	}
 }
@@ -136,7 +136,7 @@ func (r *TvRenamer) RenameFiles(renames []Rename) error {
 	for _, op := range renames {
 		level.Info(r.logger).Log("old", op.Old, "new", op.New)
 
-		if !r.dryrun {
+		if r.commit {
 			dir := path.Dir(op.New)
 			err := os.MkdirAll(dir, 0755)
 			if err != nil {
