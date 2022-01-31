@@ -67,8 +67,6 @@ func (r *TvRenamer) FindFiles(base string, extensions map[string]struct{}) ([]st
 	return out, nil
 }
 
-// TODO: Return a sorted list of a two element struct instead of a map for nicer output
-
 func (r *TvRenamer) GenerateNames(files []string, dest string, imdb ImdbID) ([]Rename, error) {
 	show, err := r.client.ShowByImdb(imdb)
 	if err != nil {
@@ -154,10 +152,10 @@ func (r *TvRenamer) RenameFiles(renames []Rename) error {
 }
 
 func sanitize(val string) string {
-	val = strings.Replace(val, " ", "_", -1)
-	val = strings.Replace(val, ":", "", -1)
-	val = strings.Replace(val, "'", "", -1)
-	val = strings.Replace(val, "&", "and", -1)
+	val = strings.ReplaceAll(val, " ", "_")
+	val = strings.ReplaceAll(val, ":", "")
+	val = strings.ReplaceAll(val, "'", "")
+	val = strings.ReplaceAll(val, "&", "and")
 	val = strings.ToLower(val)
 	return val
 }
