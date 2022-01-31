@@ -39,7 +39,6 @@ func main() {
 	tvID := tv.Arg("id", "IMDB show ID").Required().String()
 	tvSrc := tv.Arg("src", "Directory of files to rename").Required().String()
 	tvDest := tv.Arg("dest", "Destination of renamed files").Required().String()
-	// TODO: This option is named weird since it's on by default and you need to pass '--no-dry-run'
 	tvCommit := tv.Flag("commit", "Actually rename things instead of just printing new names.").Default("false").Bool()
 
 	command, err := kp.Parse(os.Args[1:])
