@@ -12,13 +12,6 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type RenameType int
-
-const (
-	RenameCopy RenameType = iota
-	RenameMove
-)
-
 type Rename struct {
 	Old string
 	New string
@@ -26,7 +19,6 @@ type Rename struct {
 
 type TvRenamer struct {
 	client MediaClient
-	op     RenameType // ignored ATM
 	commit bool
 	logger log.Logger
 }
@@ -34,7 +26,6 @@ type TvRenamer struct {
 func NewTvRenamer(client MediaClient, commit bool, logger log.Logger) *TvRenamer {
 	return &TvRenamer{
 		client: client,
-		op:     RenameMove,
 		commit: commit,
 		logger: logger,
 	}
