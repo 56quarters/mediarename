@@ -10,6 +10,8 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+const userAgent = "mediarename/0.1.0 (https://github.com/56quarters/mediarename)"
+
 type ErrorResponse struct {
 	Name    string `json:"name"`
 	Message string `json:"message"`
@@ -77,10 +79,13 @@ func NewTvMazeClient(base string, client *http.Client, logger log.Logger) (*TvMa
 // ShowByImdb implements the MediaClient interface
 func (c *TvMazeClient) ShowByImdb(imdb ImdbID) (*Show, error) {
 	params := url.Values{"imdb": {string(imdb)}}
-	r := c.request("lookup/shows", params.Encode())
+	r, err := c.request("lookup/shows", params.Encode())
+	if err != nil {
+		return nil, fmt.Errorf("unable to build request for show by ID %s: %w", imdb, err)
+	}
 
-	level.Debug(c.logger).Log("msg", "looking up show by imdb ID", "id", imdb, "url", r)
-	res, err := c.client.Get(r)
+	level.Debug(c.logger).Log("msg", "looking up show by imdb ID", "id", imdb, "url", r.URL)
+	res, err := c.client.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("unable to lookup show by ID: %w", err)
 	}
@@ -105,10 +110,13 @@ func (c *TvMazeClient) ShowByImdb(imdb ImdbID) (*Show, error) {
 // Episodes implements the MediaClient interface
 func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 	p := fmt.Sprintf("shows/%d/episodes", show.ID)
-	r := c.request(p, "")
+	r, err := c.request(p, "")
+	if err != nil {
+		return nil, fmt.Errorf("unable to build request for episodes by native ID %s: %w", show.ID, err)
+	}
 
-	level.Debug(c.logger).Log("msg", "looking up episodes by native ID", "id", show.ID, "url", r)
-	res, err := c.client.Get(r)
+	level.Debug(c.logger).Log("msg", "looking up episodes by native ID", "id", show.ID, "url", r.URL)
+	res, err := c.client.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("unable to lookup episodes by show ID %d: %w", show.ID, err)
 	}
@@ -130,7 +138,7 @@ func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 	return episodes, nil
 }
 
-func (c *TvMazeClient) request(path string, params string) string {
+func (c *TvMazeClient) request(path string, params string) (*http.Request, error) {
 	requestURL := url.URL{
 		Scheme:   c.baseURL.Scheme,
 		Opaque:   c.baseURL.Opaque,
@@ -140,5 +148,11 @@ func (c *TvMazeClient) request(path string, params string) string {
 		RawQuery: params,
 	}
 
-	return requestURL.String()
+	req, err := http.NewRequest("GET", requestURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set(http.CanonicalHeaderKey("user-agent"), userAgent)
+	return req, nil
 }
