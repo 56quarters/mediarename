@@ -146,6 +146,7 @@ func sanitize(val string) string {
 	val = strings.ReplaceAll(val, " ", "_")
 	val = strings.ReplaceAll(val, ":", "")
 	val = strings.ReplaceAll(val, "'", "")
+	val = strings.ReplaceAll(val, ",", "")
 	val = strings.ReplaceAll(val, "&", "and")
 	val = strings.ToLower(val)
 	return val
