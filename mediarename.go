@@ -19,8 +19,10 @@ const (
 var (
 	extensions = map[string]struct{}{
 		".avi": {},
+		".idx": {},
 		".mp4": {},
 		".mkv": {},
+		".sub": {},
 	}
 )
 
