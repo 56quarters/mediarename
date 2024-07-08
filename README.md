@@ -2,13 +2,30 @@
 
 Rename media files based on their metadata.
 
-## Build
-
-TBD
-
 ## Usage
 
 TBD
+
+## Build
+
+`mediarename` must be built from source using [Go](https://go.dev/). Once you have
+installed Go, obtain the source code for `mediarename`:
+
+```
+git clone https://github.com/56quarters/mediarename.git
+```
+
+Then build from the root of the source code repository:
+
+```
+cd mediarename && make
+```
+
+The will create a `mediarename` binary in the repository that you can run:
+
+```
+./mediarename --help
+```
 
 ## Limitations
 
