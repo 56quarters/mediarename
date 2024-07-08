@@ -49,7 +49,6 @@ type Episode struct {
 
 type ImdbID string
 
-//
 type MediaClient interface {
 	//
 	ShowByImdb(imdb ImdbID) (*Show, error)
@@ -112,7 +111,7 @@ func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 	p := fmt.Sprintf("shows/%d/episodes", show.ID)
 	r, err := c.request(p, "")
 	if err != nil {
-		return nil, fmt.Errorf("unable to build request for episodes by native ID %s: %w", show.ID, err)
+		return nil, fmt.Errorf("unable to build request for episodes by native ID %d: %w", show.ID, err)
 	}
 
 	level.Debug(c.logger).Log("msg", "looking up episodes by native ID", "id", show.ID, "url", r.URL)
