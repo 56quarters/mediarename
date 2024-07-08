@@ -15,7 +15,7 @@ var (
 	ErrBadMetadata    = errors.New("bad season or episode metadata")
 	ErrUnknownEpisode = errors.New("unknown episode")
 
-	multiRegex = regexp.MustCompile(`(?i)(s[\d]{2})(e[\d]{2})-?(e[\d]{2})?`)
+	multiRegex = regexp.MustCompile(`(?i)(s[\d]+)(e[\d]+)-?(e[\d]+)?`)
 )
 
 type EpisodeLookup struct {

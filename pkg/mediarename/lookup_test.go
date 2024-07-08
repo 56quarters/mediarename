@@ -25,6 +25,14 @@ var testEpisodes = Episodes{
 		Number: 2,
 		Type:   "regular",
 	},
+	Episode{
+		ID:     3,
+		URL:    "https://api.example.com/show/1/episode/3",
+		Name:   "Finale",
+		Season: 1,
+		Number: 123,
+		Type:   "regular",
+	},
 }
 
 func TestEpisodeLookup_FindEpisode(t *testing.T) {
@@ -71,5 +79,14 @@ func TestEpisodeLookup_FindEpisode(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, episodes, 1)
 		assert.Equal(t, testEpisodes[0], episodes[0])
+	})
+
+	t.Run("many digit episode number", func(t *testing.T) {
+		lookup := NewEpisodeLookup(testEpisodes, log.NewNopLogger())
+		episodes, err := lookup.FindEpisodes("show-s01e123-finale.mkv")
+
+		require.NoError(t, err)
+		require.Len(t, episodes, 1)
+		assert.Equal(t, testEpisodes[2], episodes[0])
 	})
 }
