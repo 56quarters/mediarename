@@ -34,6 +34,10 @@ func setupLogger(l level.Option) log.Logger {
 }
 
 func main() {
+	os.Exit(realMain())
+}
+
+func realMain() int {
 	logger := setupLogger(level.AllowDebug())
 	kp := kingpin.New(os.Args[0], "mediarename: rename media files based on their metadata")
 
@@ -46,19 +50,21 @@ func main() {
 	command, err := kp.Parse(os.Args[1:])
 	if err != nil {
 		level.Error(logger).Log("msg", "failed to parse CLI options", "err", err)
-		os.Exit(1)
+		return 1
 	}
 
 	switch command {
 	case tv.FullCommand():
-		if err := RenameTv(*tvSrc, *tvDest, *tvID, *tvCommit, logger); err != nil {
+		if err := renameTv(*tvSrc, *tvDest, *tvID, *tvCommit, logger); err != nil {
 			level.Error(logger).Log("msg", "failed to rename tv episodes", "err", err)
-			os.Exit(1)
+			return 1
 		}
 	}
+
+	return 0
 }
 
-func RenameTv(src string, dest string, showID string, commit bool, logger log.Logger) error {
+func renameTv(src string, dest string, showID string, commit bool, logger log.Logger) error {
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	client, err := mediarename.NewTvMazeClient(apiBase, httpClient, logger)
 	if err != nil {
