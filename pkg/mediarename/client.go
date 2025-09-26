@@ -3,11 +3,9 @@ package mediarename
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
-
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 const userAgent = "mediarename/0.1.0 (https://github.com/56quarters/mediarename)"
@@ -59,10 +57,10 @@ type MediaClient interface {
 type TvMazeClient struct {
 	client  *http.Client
 	baseURL *url.URL
-	logger  log.Logger
+	logger  *slog.Logger
 }
 
-func NewTvMazeClient(base string, client *http.Client, logger log.Logger) (*TvMazeClient, error) {
+func NewTvMazeClient(base string, client *http.Client, logger *slog.Logger) (*TvMazeClient, error) {
 	u, err := url.Parse(base)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse base URL: %w", err)
@@ -83,7 +81,7 @@ func (c *TvMazeClient) ShowByImdb(imdb ImdbID) (*Show, error) {
 		return nil, fmt.Errorf("unable to build request for show by ID %s: %w", imdb, err)
 	}
 
-	level.Debug(c.logger).Log("msg", "looking up show by imdb ID", "id", imdb, "url", r.URL)
+	c.logger.Debug("looking up show by imdb ID", "id", imdb, "url", r.URL)
 	res, err := c.client.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("unable to lookup show by ID: %w", err)
@@ -92,7 +90,7 @@ func (c *TvMazeClient) ShowByImdb(imdb ImdbID) (*Show, error) {
 	defer func() { _ = res.Body.Close() }()
 
 	// TODO: Better error handling
-	level.Debug(c.logger).Log("msg", "API response", "status", res.Status)
+	c.logger.Debug("API response", "status", res.Status)
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("non-success status code: %d", res.StatusCode)
 	}
@@ -114,7 +112,7 @@ func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 		return nil, fmt.Errorf("unable to build request for episodes by native ID %d: %w", show.ID, err)
 	}
 
-	level.Debug(c.logger).Log("msg", "looking up episodes by native ID", "id", show.ID, "url", r.URL)
+	c.logger.Debug("looking up episodes by native ID", "id", show.ID, "url", r.URL)
 	res, err := c.client.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("unable to lookup episodes by show ID %d: %w", show.ID, err)
@@ -123,7 +121,7 @@ func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 	defer func() { _ = res.Body.Close() }()
 
 	// TODO: Better error handling
-	level.Debug(c.logger).Log("msg", "API response", "status", res.Status)
+	c.logger.Debug("API response", "status", res.Status)
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("non-success status code %d", res.StatusCode)
 	}

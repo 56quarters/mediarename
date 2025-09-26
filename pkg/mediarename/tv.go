@@ -3,13 +3,11 @@ package mediarename
 import (
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 type Rename struct {
@@ -20,10 +18,10 @@ type Rename struct {
 type TvRenamer struct {
 	client MediaClient
 	commit bool
-	logger log.Logger
+	logger *slog.Logger
 }
 
-func NewTvRenamer(client MediaClient, commit bool, logger log.Logger) *TvRenamer {
+func NewTvRenamer(client MediaClient, commit bool, logger *slog.Logger) *TvRenamer {
 	return &TvRenamer{
 		client: client,
 		commit: commit,
@@ -75,7 +73,7 @@ func (r *TvRenamer) GenerateNames(files []string, dest string, imdb ImdbID) ([]R
 	for _, file := range files {
 		matched, err := lookup.FindEpisodes(file)
 		if err != nil {
-			level.Warn(r.logger).Log("msg", "unable to generate new name for file", "file", file, "err", err)
+			r.logger.Warn("unable to generate new name for file", "file", file, "err", err)
 			continue
 		}
 
@@ -123,7 +121,7 @@ func (r *TvRenamer) nameFromEpisodes(file string, dest string, show *Show, episo
 
 func (r *TvRenamer) RenameFiles(renames []Rename) error {
 	for _, op := range renames {
-		level.Info(r.logger).Log("old", op.Old, "new", op.New)
+		r.logger.Info("rename", "old", op.Old, "new", op.New)
 
 		if r.commit {
 			dir := path.Dir(op.New)

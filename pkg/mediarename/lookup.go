@@ -3,12 +3,10 @@ package mediarename
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"path"
 	"regexp"
 	"strings"
-
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 var (
@@ -20,10 +18,10 @@ var (
 
 type EpisodeLookup struct {
 	lookup map[string]Episode
-	logger log.Logger
+	logger *slog.Logger
 }
 
-func NewEpisodeLookup(episodes Episodes, logger log.Logger) *EpisodeLookup {
+func NewEpisodeLookup(episodes Episodes, logger *slog.Logger) *EpisodeLookup {
 	lookup := make(map[string]Episode)
 
 	for _, e := range episodes {
@@ -36,7 +34,7 @@ func NewEpisodeLookup(episodes Episodes, logger log.Logger) *EpisodeLookup {
 func (l *EpisodeLookup) FindEpisodes(p string) (Episodes, error) {
 	file := path.Base(p)
 
-	level.Debug(l.logger).Log("msg", "extracting season episode from file", "file", file)
+	l.logger.Debug("extracting season episode from file", "file", file)
 	matched := multiRegex.FindStringSubmatch(file)
 	if matched == nil {
 		return nil, fmt.Errorf("%w: could not find season and episode in %s", ErrBadMetadata, file)
@@ -57,7 +55,7 @@ func (l *EpisodeLookup) FindEpisodes(p string) (Episodes, error) {
 
 	var out []Episode
 	for _, meta := range lookup {
-		level.Debug(l.logger).Log("msg", "using parsed season episode for lookup", "meta", meta)
+		l.logger.Debug("using parsed season episode for lookup", "meta", meta)
 		e, ok := l.lookup[meta]
 		if !ok {
 			return nil, fmt.Errorf("%w: trying to match %s from %s", ErrUnknownEpisode, meta, file)

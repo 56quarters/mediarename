@@ -1,14 +1,13 @@
 package main
 
 import (
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-	"gopkg.in/alecthomas/kingpin.v2"
-
+	"github.com/alecthomas/kingpin/v2"
+	
 	"github.com/56quarters/mediarename/pkg/mediarename"
 )
 
@@ -26,19 +25,12 @@ var (
 	}
 )
 
-func setupLogger(l level.Option) log.Logger {
-	logger := log.NewSyncLogger(log.NewLogfmtLogger(os.Stderr))
-	logger = level.NewFilter(logger, l)
-	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-	return logger
-}
-
 func main() {
 	os.Exit(realMain())
 }
 
 func realMain() int {
-	logger := setupLogger(level.AllowDebug())
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	kp := kingpin.New(os.Args[0], "mediarename: rename media files based on their metadata")
 
 	tv := kp.Command("tv", "rename TV episodes based on show and episode metadata ")
@@ -49,14 +41,14 @@ func realMain() int {
 
 	command, err := kp.Parse(os.Args[1:])
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to parse CLI options", "err", err)
+		logger.Error("failed to parse CLI options", "err", err)
 		return 1
 	}
 
 	switch command {
 	case tv.FullCommand():
 		if err := renameTv(*tvSrc, *tvDest, *tvID, *tvCommit, logger); err != nil {
-			level.Error(logger).Log("msg", "failed to rename tv episodes", "err", err)
+			logger.Error("failed to rename tv episodes", "err", err)
 			return 1
 		}
 	}
@@ -64,7 +56,7 @@ func realMain() int {
 	return 0
 }
 
-func renameTv(src string, dest string, showID string, commit bool, logger log.Logger) error {
+func renameTv(src string, dest string, showID string, commit bool, logger *slog.Logger) error {
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	client, err := mediarename.NewTvMazeClient(apiBase, httpClient, logger)
 	if err != nil {
