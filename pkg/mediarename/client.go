@@ -149,7 +149,7 @@ func (c *TvMazeClient) request(path string, params string) (*http.Request, error
 		return nil, err
 	}
 
-	req.Header.Set(http.CanonicalHeaderKey("user-agent"), userAgent)
+	req.Header.Set("user-agent", userAgent)
 	return req, nil
 }
 

@@ -1,13 +1,13 @@
+version: "2"
 linters:
   enable:
-    - goimports
-    - golint
-    - gofmt
+    - revive
     - misspell
-    - depguard
+    - staticcheck
+  exclusions:
+    presets:
+      - comments
+formatters:
+  enable:
+    - gofmt
 
-linters-settings:
-  errcheck:
-    exclude: ./.errcheck-exclude
-  goimports:
-    local-prefixes: "github.com/56quarters/mediarename"

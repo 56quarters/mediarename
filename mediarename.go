@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	
+
 	"github.com/56quarters/mediarename/pkg/mediarename"
 )
 
