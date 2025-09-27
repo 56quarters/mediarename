@@ -3,6 +3,7 @@ package mediarename
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -48,9 +49,7 @@ type Episode struct {
 type ImdbID string
 
 type MediaClient interface {
-	//
 	ShowByImdb(imdb ImdbID) (*Show, error)
-	//
 	Episodes(show *Show) (Episodes, error)
 }
 
@@ -87,7 +86,7 @@ func (c *TvMazeClient) ShowByImdb(imdb ImdbID) (*Show, error) {
 		return nil, fmt.Errorf("unable to lookup show by ID: %w", err)
 	}
 
-	defer func() { _ = res.Body.Close() }()
+	defer c.drainAndClose(res.Body)
 
 	// TODO: Better error handling
 	c.logger.Debug("API response", "status", res.Status)
@@ -118,7 +117,7 @@ func (c *TvMazeClient) Episodes(show *Show) (Episodes, error) {
 		return nil, fmt.Errorf("unable to lookup episodes by show ID %d: %w", show.ID, err)
 	}
 
-	defer func() { _ = res.Body.Close() }()
+	defer c.drainAndClose(res.Body)
 
 	// TODO: Better error handling
 	c.logger.Debug("API response", "status", res.Status)
@@ -152,4 +151,9 @@ func (c *TvMazeClient) request(path string, params string) (*http.Request, error
 
 	req.Header.Set(http.CanonicalHeaderKey("user-agent"), userAgent)
 	return req, nil
+}
+
+func (c *TvMazeClient) drainAndClose(body io.ReadCloser) {
+	_, _ = io.Copy(io.Discard, body)
+	_ = body.Close()
 }
