@@ -3,9 +3,6 @@ package mediarename
 import (
 	"log/slog"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var testEpisodes = Episodes{
@@ -40,53 +37,53 @@ func TestEpisodeLookup_FindEpisode(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, slog.New(slog.DiscardHandler))
 		episodes, err := lookup.FindEpisodes("show-season_1_episode_1-pilot.mkv")
 
-		assert.Empty(t, episodes)
-		assert.ErrorIs(t, err, ErrBadMetadata)
+		RequireEqual(t, 0, len(episodes))
+		RequireErrorIs(t, err, ErrBadMetadata)
 	})
 
 	t.Run("no episode available", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, slog.New(slog.DiscardHandler))
 		episodes, err := lookup.FindEpisodes("show-s01e03-something.mkv")
 
-		assert.Empty(t, episodes)
-		assert.ErrorIs(t, err, ErrUnknownEpisode)
+		RequireEqual(t, 0, len(episodes))
+		RequireErrorIs(t, err, ErrUnknownEpisode)
 	})
 
 	t.Run("multi episode match in file name lowercase", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, slog.New(slog.DiscardHandler))
 		episodes, err := lookup.FindEpisodes("show-s01e01-e02-pilot.mkv")
 
-		require.NoError(t, err)
-		require.Len(t, episodes, 2)
-		assert.Equal(t, testEpisodes[0], episodes[0])
-		assert.Equal(t, testEpisodes[1], episodes[1])
+		RequireNoError(t, err)
+		RequireEqual(t, 2, len(episodes))
+		RequireEqual(t, testEpisodes[0], episodes[0])
+		RequireEqual(t, testEpisodes[1], episodes[1])
 	})
 
 	t.Run("multi episode match in file name uppercase", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, slog.New(slog.DiscardHandler))
 		episodes, err := lookup.FindEpisodes("show-S01E01-E02-pilot.mkv")
 
-		require.NoError(t, err)
-		require.Len(t, episodes, 2)
-		assert.Equal(t, testEpisodes[0], episodes[0])
-		assert.Equal(t, testEpisodes[1], episodes[1])
+		RequireNoError(t, err)
+		RequireEqual(t, 2, len(episodes))
+		RequireEqual(t, testEpisodes[0], episodes[0])
+		RequireEqual(t, testEpisodes[1], episodes[1])
 	})
 
 	t.Run("single episode match in file name", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, slog.New(slog.DiscardHandler))
 		episodes, err := lookup.FindEpisodes("show-s01e01-pilot.mkv")
 
-		require.NoError(t, err)
-		require.Len(t, episodes, 1)
-		assert.Equal(t, testEpisodes[0], episodes[0])
+		RequireNoError(t, err)
+		RequireEqual(t, 1, len(episodes))
+		RequireEqual(t, testEpisodes[0], episodes[0])
 	})
 
 	t.Run("many digit episode number", func(t *testing.T) {
 		lookup := NewEpisodeLookup(testEpisodes, slog.New(slog.DiscardHandler))
 		episodes, err := lookup.FindEpisodes("show-s01e123-finale.mkv")
 
-		require.NoError(t, err)
-		require.Len(t, episodes, 1)
-		assert.Equal(t, testEpisodes[2], episodes[0])
+		RequireNoError(t, err)
+		RequireEqual(t, 1, len(episodes))
+		RequireEqual(t, testEpisodes[2], episodes[0])
 	})
 }
