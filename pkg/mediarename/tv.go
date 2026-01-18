@@ -142,6 +142,7 @@ func (r *TvRenamer) RenameFiles(renames []Rename) error {
 
 func sanitize(val string) string {
 	val = strings.ReplaceAll(val, " ", "_")
+	val = strings.ReplaceAll(val, "/", "_")
 	val = strings.ReplaceAll(val, ":", "")
 	val = strings.ReplaceAll(val, "'", "")
 	val = strings.ReplaceAll(val, ",", "")
